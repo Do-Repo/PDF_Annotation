@@ -42,7 +42,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    getConfiguration = getConfigurations();
+    getConfiguration = getConfigurations().then((value) => configuration = value);
     super.initState();
   }
 
@@ -68,7 +68,7 @@ class _MyHomePageState extends State<MyHomePage> {
       var sentences = config.chunk!.replaceAll('\n', ' ');
       var lines = PdfTextExtractor(document).extractTextLines(startPageIndex: config.pageNumber);
       for (var line in lines) {
-        if (sentences.contains(line.text)) {
+        if (sentences.similarTo(line.text)) {
           controller.addAnnotation(
               HighlightAnnotation(textBoundsCollection: [PdfTextLine(line.bounds, line.text, line.pageIndex + 1)]));
         }
@@ -82,6 +82,12 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
+        leading: IconButton(
+          icon: Icon(Icons.on_device_training),
+          onPressed: () {
+            setAnnotations(document, configuration);
+          },
+        ),
       ),
       body: FutureBuilder(
         future: getConfiguration,
@@ -133,4 +139,31 @@ class Config {
   }
 
   factory Config.fromJson(String source) => Config.fromMap(json.decode(source) as Map<String, dynamic>);
+}
+
+extension StringSimilarity on String {
+  bool similarTo(String other) {
+    for (int i = 0; i <= length - other.length; i++) {
+      String substring = this.substring(i, i + other.length);
+      double similarity = _calculateSimilarity(substring, other);
+      // Accepts similarity upto 90%
+      if (similarity >= 0.9) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  double _calculateSimilarity(String s1, String s2) {
+    int length = s1.length;
+    int matches = 0;
+
+    for (int i = 0; i < length; i++) {
+      if (s1[i] == s2[i]) {
+        matches++;
+      }
+    }
+
+    return matches / length;
+  }
 }
