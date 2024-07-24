@@ -46,27 +46,16 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-  double percentageDifference(int value1, int value2) {
-    int difference = (value1 - value2).abs();
-    double percentageDifference = (difference / value1) * 100;
-    return percentageDifference;
-  }
-
-  double removePercentage(double value, double percentage) {
-    double amountToRemove = (value * percentage) / 100;
-    return value - amountToRemove;
-  }
-
   Future<List<Config>> getConfigurations() async {
     String data = await DefaultAssetBundle.of(context).loadString("assets/config.json");
-    final jsonResult = jsonDecode(data)["config"] as List;
+    final jsonResult = jsonDecode(data) as List;
     return jsonResult.map((element) => Config.fromMap(element)).toList();
   }
 
   void setAnnotations(PdfDocument document, List<Config> configurations) {
     for (var config in configurations) {
-      var sentences = config.chunk!.replaceAll('\n', ' ');
-      var lines = PdfTextExtractor(document).extractTextLines(startPageIndex: config.pageNumber);
+      var sentences = config.chunk!.replaceAll('\r\n', ' ');
+      var lines = PdfTextExtractor(document).extractTextLines(startPageIndex: config.pageNumber! - 1);
       for (var line in lines) {
         if (sentences.similarTo(line.text)) {
           controller.addAnnotation(
@@ -83,7 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         leading: IconButton(
-          icon: Icon(Icons.on_device_training),
+          icon: const Icon(Icons.on_device_training),
           onPressed: () {
             setAnnotations(document, configuration);
           },
