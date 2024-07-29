@@ -44,8 +44,6 @@ class _MyHomePageState extends State<MyHomePage> {
   late PdfDocument document;
   late Future<Uint8List> loadPdf;
 
-  bool isloading = true;
-
   @override
   void initState() {
     getConfiguration =
@@ -117,9 +115,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         snap.data!,
                         controller: controller,
                         onDocumentLoaded: (details) {
-                          setState(() {
-                            isloading = false;
-                          });
                           document = details.document;
                           setAnnotations(details.document, snapshot.data!);
                         },
