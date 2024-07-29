@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -39,27 +42,41 @@ class _MyHomePageState extends State<MyHomePage> {
   late Future<List<Config>> getConfiguration;
   late List<Config> configuration;
   late PdfDocument document;
+  late Future<Uint8List> loadPdf;
+
+  bool isloading = true;
 
   @override
   void initState() {
-    getConfiguration = getConfigurations().then((value) => configuration = value);
+    getConfiguration =
+        getConfigurations().then((value) => configuration = value);
+    loadPdf = loadPFD();
     super.initState();
   }
 
   Future<List<Config>> getConfigurations() async {
-    String data = await DefaultAssetBundle.of(context).loadString("assets/config.json");
+    String data =
+        await DefaultAssetBundle.of(context).loadString("assets/config.json");
     final jsonResult = jsonDecode(data) as List;
     return jsonResult.map((element) => Config.fromMap(element)).toList();
   }
 
-  void setAnnotations(PdfDocument document, List<Config> configurations) {
+  Future<Uint8List> loadPFD() async {
+    return await http.readBytes(Uri.parse(
+        "http://ianswer-public-web-bucket.s3-website.us-east-2.amazonaws.com/assets/136.pdf"));
+  }
+
+  void setAnnotations(PdfDocument document, List<Config> configurations) async {
     for (var config in configurations) {
       var sentences = config.chunk!.replaceAll('\r\n', ' ');
-      var lines = PdfTextExtractor(document).extractTextLines(startPageIndex: config.pageNumber! - 1);
+
+      var lines = PdfTextExtractor(document)
+          .extractTextLines(startPageIndex: config.pageNumber! - 1);
       for (var line in lines) {
         if (sentences.similarTo(line.text)) {
-          controller.addAnnotation(
-              HighlightAnnotation(textBoundsCollection: [PdfTextLine(line.bounds, line.text, line.pageIndex + 1)]));
+          controller.addAnnotation(HighlightAnnotation(textBoundsCollection: [
+            PdfTextLine(line.bounds, line.text, line.pageIndex + 1)
+          ]));
         }
       }
     }
@@ -87,14 +104,33 @@ class _MyHomePageState extends State<MyHomePage> {
             return Center(child: Text(snapshot.error.toString()));
           } else {
             configuration = snapshot.data!;
-            return SfPdfViewer.network(
-              "http://ianswer-public-web-bucket.s3-website.us-east-2.amazonaws.com/assets/136.pdf",
-              controller: controller,
-              onDocumentLoaded: (details) {
-                document = details.document;
-                setAnnotations(details.document, snapshot.data!);
-              },
-            );
+            return FutureBuilder(
+                future: loadPdf,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snap.hasError) {
+                    return Center(child: Text(snap.error.toString()));
+                  } else {
+                    if (snap.data != null) {
+                      return SfPdfViewer.memory(
+                        snap.data!,
+                        controller: controller,
+                        onDocumentLoaded: (details) {
+                          setState(() {
+                            isloading = false;
+                          });
+                          document = details.document;
+                          setAnnotations(details.document, snapshot.data!);
+                        },
+                      );
+                    }
+
+                    return const Center(
+                      child: Text("Data is empty"),
+                    );
+                  }
+                });
           }
         },
       ),
@@ -127,7 +163,8 @@ class Config {
     );
   }
 
-  factory Config.fromJson(String source) => Config.fromMap(json.decode(source) as Map<String, dynamic>);
+  factory Config.fromJson(String source) =>
+      Config.fromMap(json.decode(source) as Map<String, dynamic>);
 }
 
 extension StringSimilarity on String {

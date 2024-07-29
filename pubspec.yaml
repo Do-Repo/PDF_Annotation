@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   syncfusion_flutter_pdf: ^26.1.39
   syncfusion_flutter_pdfviewer: ^26.1.39
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
